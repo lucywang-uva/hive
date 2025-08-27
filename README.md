@@ -2,7 +2,7 @@
 
 ## How to run
 
-Clone project into IDE \
+Clone project into IDE 
 
 In the project directory, run:
 npm install \
