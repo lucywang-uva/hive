@@ -1,102 +1,114 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { FaCaretDown, FaCaretUp } from "react-icons/fa";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
-export const Select = ({labelName, options, isMulti = false, setSelected }) => {
+export const Select = ({ labelName, options, selected, setSelected, isMulti = false }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [optionsDropdown, setOptionsDropdown] = useState(
-    isMulti
-      ? [{ label: "Select all", value: null, selected: false }, ...options]
-      : [{ label: "None", value: null, selected: false }, ...options]
-  );
+  const inputRef = useRef(null);
   const dropdownRef = useRef(null);
 
+  const allOptions = useMemo(() => [
+    isMulti
+      ? { label: "Select all", value: null, selected: selected.length === options.length }
+      : { label: "None", value: null, selected: !selected },
+    ...options.map(option => ({
+      ...option,
+      selected: isMulti
+        ? selected.some(s => s.value === option.value)
+        : selected?.value === option.value
+    }))
+  ], [options, selected, isMulti]);
+
+  const virtualizedItem = useVirtualizer({
+    count: allOptions.length,
+    estimateSize: () => 40, 
+    getScrollElement: () => dropdownRef.current,
+  });
+
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const onClickOutsideDropdown = (event) => {
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", onClickOutsideDropdown);
+    return () => document.removeEventListener("mousedown", onClickOutsideDropdown);
   }, []);
 
-  const selectOption = (selectedOption) => {
-    let updatedOptions;
+  const selectOption = (option) => {
     if (isMulti) {
-      if (selectedOption.value === null) {
-        const newSelected = !selectedOption.selected;
-        updatedOptions = optionsDropdown.map(option => ({ ...option, selected: newSelected }));
+      if (option.value === null) {
+        const areAllSelected = selected.length === options.length;
+        setSelected(areAllSelected ? [] : [...options]);
       } else {
-        updatedOptions = optionsDropdown.map(option =>
-            option.value === selectedOption.value
-              ? { ...option, selected: !option.selected }
-              : option
-          )
-        updatedOptions[0].selected = updatedOptions.slice(1).every(option => option.selected);
+        const alreadySelected = selected.some(s => s.value === option.value);
+        const newSelected = alreadySelected
+          ? selected.filter(s => s.value !== option.value)
+          : [...selected, option];
+        setSelected(newSelected);
       }
-      setSelected(updatedOptions.filter((option) => option.selected));
     } else {
-        updatedOptions = optionsDropdown.map(option => ({
-            ...option,
-            selected: option.value === selectedOption.value
-        }));
-        setIsDropdownOpen(false);
-        }
-        setOptionsDropdown(updatedOptions);
-        setSelected(updatedOptions.find((option) => option.selected));
-    };
+      if (option.value === null) setSelected(null);
+      else setSelected(option);
+      setIsDropdownOpen(false);
+    }
+  };
 
-  const selectedOptions = optionsDropdown
-    .filter(option => option.selected && option.value != null)
-    .map(option => option.label)
-    .join(", ");
+  const fieldText = useMemo(() => {
+    if (isMulti) {
+      return selected.map(o => o.label).join(", ");
+    }
+    return selected?.label || ""; 
+  }, [isMulti, selected])
+
 
   return (
-    <div className="flex-col flex w-64 relative" ref={dropdownRef}>
-      <div className="w-full select-none">
+    <div className="flex-col w-64 relative select-none" ref={inputRef}>
         <div
-          className="z-0 px-3 py-4 border border-2 flex rounded-md text-left items-center justify-between border-blue-500 cursor-pointer relative"
+          className="px-3 py-4 border border-2 flex rounded-md items-center justify-between border-blue-500 cursor-pointer"
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
-          {labelName && <label className="absolute mb-14 bg-white px-1 text-xs text-blue-500">
-            {labelName}
-          </label>}
+          {labelName && (
+            <label className="absolute mb-14 bg-white px-1 text-xs text-blue-500">{labelName}</label>
+          )}
           <span
-            title={selectedOptions}
-            className={`w-full whitespace-nowrap overflow-hidden overflow-ellipsis pr-2 ${
-              selectedOptions.length === 0 ? "text-gray-500" : ""
-            }`}
+            title={fieldText}
+            className={`whitespace-nowrap overflow-hidden overflow-ellipsis pr-2 ${!fieldText && "text-gray-500"}`}
           >
-            {selectedOptions.length > 0 ? selectedOptions : "Select..."}
+            {fieldText ? fieldText : "Select..."}
           </span>
-          <div className="flex gap-2">
-            <span className="flex">
-              {isDropdownOpen ? <FaCaretUp color={"gray"} /> : <FaCaretDown color={"gray"} />}
-            </span>
-          </div>
+            {isDropdownOpen ? <FaCaretUp color="gray" /> : <FaCaretDown color="gray" />}
         </div>
-
         {isDropdownOpen && (
-          <ul className="max-h-48 overflow-y-auto rounded-md flex flex-col border shadow-md mt-1 bg-white z-20 absolute w-full">
-            {optionsDropdown.map((option) => (
-              <div
-                key={option.value}
-                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center gap-2 ${
-                  option.selected ? "bg-blue-50" : ""
-                }`}
-                onClick={() => selectOption(option)}
-              >
-                {isMulti && option.value != null && (
-                  <input type="checkbox" checked={option.selected} readOnly />
-                )}
-                <li className={`whitespace-nowrap overflow-hidden overflow-ellipsis ${option.value === null ? 'italic' : ''}`}>
-                  {option.label}
-                </li>
-              </div>
-            ))}
+          <ul
+            ref={dropdownRef}
+            className="absolute max-h-64 overflow-y-auto rounded-md flex-col border shadow-md w-full"
+            style={{height: `${virtualizedItem.getTotalSize()}px` }}
+          >
+            {virtualizedItem.getVirtualItems().map(item => {
+              const option = allOptions[item.index];
+              return (
+                <div
+                  key={option.value}
+                  className={`absolute w-full px-3 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2 ${
+                    option.selected ? "bg-blue-200" : ""
+                  }`}
+                  style={{
+                    transform: `translateY(${item.start}px)`,
+                  }}
+                  onClick={() => selectOption(option)}
+                >
+                  {isMulti && option.value != null && (
+                    <input type="checkbox" checked={option.selected} readOnly/>
+                  )}
+                  <li className={`whitespace-nowrap overflow-hidden overflow-ellipsis ${option.value === null ? "italic" : ""}`}>
+                    {option.label}
+                  </li>
+                </div>
+              );
+            })}
           </ul>
         )}
-      </div>
     </div>
   );
 };
