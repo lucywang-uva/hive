@@ -10,9 +10,9 @@ const App = () => {
 
 
   return (
-    <div className="flex items-center justify-center pt-32 gap-32">
-      <Select labelName={"Select fruits"} options={MOCK_MULTI_SELECT_OPTIONS} isMulti={true} selected={selectedMulti} setSelected={setSelectedMulti}/>
-      <Select labelName={"Select vegetable"} options={MOCK_SINGLE_SELECT_OPTIONS} isMulti={false} selected={selectedSingle} setSelected={setSelectedSingle} />
+    <div className="flex justify-center pt-32 gap-32">
+      <Select labelName={"Select fruits"} options={MOCK_MULTI_SELECT_OPTIONS} isMulti={true} selected={selectedMulti} setSelected={setSelectedMulti}/> {/*Multi select field*/}
+      <Select labelName={"Select vegetable"} options={MOCK_SINGLE_SELECT_OPTIONS} isMulti={false} selected={selectedSingle} setSelected={setSelectedSingle} />  {/*Single select field*/}
     </div>
 
   );

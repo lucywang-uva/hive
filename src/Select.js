@@ -8,18 +8,16 @@ export const Select = ({ labelName, options, selected, setSelected, isMulti = fa
   const dropdownRef = useRef(null);
 
   const allOptions = useMemo(() => [
-    isMulti
-      ? { label: "Select all", value: null, selected: selected.length === options.length }
-      : { label: "None", value: null, selected: !selected },
+  { label: isMulti ? "Select all" : "None", value: null, selected: isMulti? selected.length === options.length : !selected }, 
     ...options.map(option => ({
       ...option,
       selected: isMulti
-        ? selected.some(s => s.value === option.value)
+        ? selected.some(select => select.value === option.value)
         : selected?.value === option.value
     }))
   ], [options, selected, isMulti]);
 
-  const virtualizedItem = useVirtualizer({
+  const virtualizedOptions = useVirtualizer({
     count: allOptions.length,
     estimateSize: () => 40, 
     overscan: 3,
@@ -39,31 +37,26 @@ export const Select = ({ labelName, options, selected, setSelected, isMulti = fa
   const selectOption = (option) => {
     if (isMulti) {
       if (option.value === null) {
-        const areAllSelected = selected.length === options.length;
-        setSelected(areAllSelected ? [] : [...options]);
+        const isSelectAllSelected = selected.length === options.length;
+        setSelected(isSelectAllSelected ? [] : [...options]);
       } else {
-        const alreadySelected = selected.some(s => s.value === option.value);
-        const newSelected = alreadySelected
-          ? selected.filter(s => s.value !== option.value)
+        const isOptionCurrentlySelected = selected.some(select => select.value === option.value);
+        const updatedSelected = isOptionCurrentlySelected
+          ? selected.filter(select => select.value !== option.value)
           : [...selected, option];
-        setSelected(newSelected);
+        setSelected(updatedSelected);
       }
     } else {
-      if (option.value === null) {
-        setSelected(null);
-      } 
-      else {
-        setSelected(option);
-      }
+      setSelected(option.value === null ? null : option);
       setIsDropdownOpen(false);
     }
   };
 
   const fieldText = useMemo(() => {
     if (isMulti) {
-      return selected.map(o => o.label).join(", ");
+      return selected.map(select => select.label).join(", ");
     }
-    return selected?.label || ""; 
+    return selected?.label; 
   }, [isMulti, selected])
 
 
@@ -87,10 +80,10 @@ export const Select = ({ labelName, options, selected, setSelected, isMulti = fa
         {isDropdownOpen && (
           <ul
             ref={dropdownRef}
-            className="absolute max-h-64 overflow-y-auto rounded-md flex-col border shadow-md w-full"
-            style={{height: `${virtualizedItem.getTotalSize()}px` }}
+            className="max-h-64 overflow-y-auto rounded-md flex-col border shadow-md w-full"
+            style={{position: 'relative' ,height: `${virtualizedOptions.getTotalSize()}px` }}
           >
-            {virtualizedItem.getVirtualItems().map(item => {
+            {virtualizedOptions.getVirtualItems().map(item => {
               const option = allOptions[item.index];
               return (
                 <div
