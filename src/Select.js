@@ -22,6 +22,7 @@ export const Select = ({ labelName, options, selected, setSelected, isMulti = fa
   const virtualizedItem = useVirtualizer({
     count: allOptions.length,
     estimateSize: () => 40, 
+    overscan: 3,
     getScrollElement: () => dropdownRef.current,
   });
 
@@ -48,8 +49,12 @@ export const Select = ({ labelName, options, selected, setSelected, isMulti = fa
         setSelected(newSelected);
       }
     } else {
-      if (option.value === null) setSelected(null);
-      else setSelected(option);
+      if (option.value === null) {
+        setSelected(null);
+      } 
+      else {
+        setSelected(option);
+      }
       setIsDropdownOpen(false);
     }
   };
